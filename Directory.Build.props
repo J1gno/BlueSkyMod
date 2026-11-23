@@ -1,0 +1,19 @@
+<Project>
+  <!--
+    Shared MSBuild configuration for BlueSkyMod, BlueSkyMod_InstantUnlock, and SaveCleanerTests.
+    Contributors with a non-default Steam install path should copy
+    `Directory.Build.props.user.example` to `Directory.Build.props.user` (gitignored)
+    instead of editing tracked .csproj files.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.props.user"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.props.user')" />
+
+  <PropertyGroup>
+    <!-- Resolution order: CLI -p:ScheduleIPath -> Directory.Build.props.user -> SCHEDULE_I_PATH env var -> default Steam path -->
+    <ScheduleIPath Condition="'$(ScheduleIPath)' == '' And '$(SCHEDULE_I_PATH)' != ''">$(SCHEDULE_I_PATH)</ScheduleIPath>
+    <ScheduleIPath Condition="'$(ScheduleIPath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Schedule I</ScheduleIPath>
+
+    <!-- Set to false via Directory.Build.props.user or `-p:CopyToMods=false` to skip auto-copying the built DLL into the game's Mods folder. -->
+    <CopyToMods Condition="'$(CopyToMods)' == ''">true</CopyToMods>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    Copy this file to `Directory.Build.props.user` (gitignored) to override local build paths
+    without modifying tracked project files.
+  -->
+  <PropertyGroup>
+    <ScheduleIPath>D:\SteamLibrary\steamapps\common\Schedule I</ScheduleIPath>
+    <CopyToMods>true</CopyToMods>
+  </PropertyGroup>
+</Project>

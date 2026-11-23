@@ -1,0 +1,26 @@
+# Build outputs
+bin/
+obj/
+*.dll
+*.pdb
+*.nupkg
+
+# Local developer overrides
+Directory.Build.props.user
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE / Editor caches
+.vs/
+.idea/
+*.swp
+*.swo
+
+# Logs, backups & OS files
+*.log
+*.bak
+UserData/
+.DS_Store
+Thumbs.db
