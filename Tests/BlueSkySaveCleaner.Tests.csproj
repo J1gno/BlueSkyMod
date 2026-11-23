@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Standalone .NET 8 test runner for BlueSkySaveCleaner (no Unity/game launch required). -->
+  <!-- Inherits ScheduleIPath from root Directory.Build.props to reference MelonLoader's Newtonsoft.Json.dll. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IntermediateOutputPath>..\obj\Tests\$(Configuration)\$(TargetFramework)\</IntermediateOutputPath>
+    <OutputPath>..\bin\Tests\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\BlueSkySaveCleaner.cs" Link="BlueSkySaveCleaner.cs" />
+    <Compile Include="SaveCleanerTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(ScheduleIPath)\MelonLoader\net6\Newtonsoft.Json.dll" />
+  </ItemGroup>
+
+</Project>
