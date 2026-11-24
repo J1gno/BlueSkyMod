@@ -138,6 +138,7 @@ namespace BlueSkyMod
             TryPatch(typeof(Registry), "Awake", Type.EmptyTypes, null, new HarmonyMethod(typeof(Registry_Awake_Patch), "Postfix"));
             TryPatch(typeof(ProductManager), "Awake", Type.EmptyTypes, null, new HarmonyMethod(typeof(ProductManager_Awake_Patch), "Postfix"));
             TryPatch(typeof(ProductManager), "OnStartClient", Type.EmptyTypes, new HarmonyMethod(typeof(ProductManager_OnStartClient_Patch), "Prefix"), null);
+            TryPatch(typeof(ProductManager), "CheckDiscovery", new[] { typeof(ItemInstance) }, new HarmonyMethod(typeof(ProductManager_CheckDiscovery_Patch), "Prefix"), null);
             TryPatch(typeof(ProductIconManager), "Awake", Type.EmptyTypes, null, new HarmonyMethod(typeof(ProductIconManager_Awake_Patch), "Postfix"));
             TryPatch(typeof(PropertyUtility), "Awake", Type.EmptyTypes, null, new HarmonyMethod(typeof(PropertyUtility_Awake_Patch), "Postfix"));
             TryPatch(typeof(PropertyUtility), "GetProperties", new[] { typeof(List<string>) }, new HarmonyMethod(typeof(PropertyUtility_GetProperties_Patch), "Prefix"), null);
@@ -315,6 +316,7 @@ namespace BlueSkyMod
                 }
 
                 EnsureCoreDefinitionsCreated(false);
+                TryDiscoverExistingBlueSky(NetworkSingleton<ProductManager>.Instance);
 
                 elapsed = 0f;
                 while (!IconManagerReady())

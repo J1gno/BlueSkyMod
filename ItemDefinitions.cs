@@ -18,6 +18,7 @@ using UnityEngine;
 
 using Il2CppScheduleOne;
 using Il2CppScheduleOne.DevUtilities;
+using Il2CppScheduleOne.Economy;
 using Il2CppScheduleOne.Effects;
 using Il2CppScheduleOne.Effects.MixMaps;
 using Il2CppScheduleOne.FX;
@@ -27,6 +28,7 @@ using Il2CppScheduleOne.NPCs;
 using Il2CppScheduleOne.PlayerScripts;
 using Il2CppScheduleOne.Product;
 using Il2CppScheduleOne.StationFramework;
+using Il2CppScheduleOne.Storage;
 using Il2CppScheduleOne.Tools;
 using Il2CppScheduleOne.UI.Shop;
 using Il2CppScheduleOne.UI.Stations;
@@ -100,6 +102,52 @@ namespace BlueSkyMod
                 {
                     LogWarnOnce("pm-startclient-init", $"Client ProductManager definition setup failed: {ex.Message}");
                 }
+            }
+        }
+
+        // Vanilla CheckDiscovery only unlocks hardcoded "meth"/"cocaine"/"shroom" and gates "meth" on
+        // MethDiscovered (any Methamphetamine in DiscoveredProducts). Discover Blue Sky explicitly when
+        // produced/held without unlocking vanilla meth, and keep vanilla meth discoverable afterwards.
+        public static class ProductManager_CheckDiscovery_Patch
+        {
+            public static bool Prefix(ItemInstance __0)
+            {
+                if (_suppressInjectionThisLoad || __0 == null) return true;
+                try
+                {
+                    if (!NetworkSingleton<ProductManager>.InstanceExists) return true;
+                    var pm = NetworkSingleton<ProductManager>.Instance;
+                    if (pm == null) return true;
+
+                    string itemId = GetItemInstanceId(__0);
+                    if (string.IsNullOrEmpty(itemId)) return true;
+
+                    if (string.Equals(itemId, BlueSkyIds.BlueSky, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (BlueSky == null)
+                            EnsureCoreDefinitionsCreated(false);
+                        if (BlueSky != null && (ProductManager.DiscoveredProducts == null || !ProductManager.DiscoveredProducts.Contains(BlueSky)))
+                        {
+                            AddToProductLists(pm, BlueSky);
+                            DiscoverBlueSky(pm);
+                        }
+                        return false;
+                    }
+
+                    if (pm.DefaultMeth != null &&
+                        string.Equals(itemId, pm.DefaultMeth.ID, StringComparison.OrdinalIgnoreCase) &&
+                        ProductManager.DiscoveredProducts != null &&
+                        !ProductManager.DiscoveredProducts.Contains(pm.DefaultMeth))
+                    {
+                        pm.SetMethDiscovered();
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogWarnOnce("check-discovery", $"Blue Sky product discovery hook failed: {ex.Message}");
+                }
+                return true;
             }
         }
 
@@ -621,7 +669,11 @@ namespace BlueSkyMod
 
         private static bool ProductHasBlueSkyEffect(ProductItemInstance product)
         {
-            var def = product?.Definition;
+            return DefinitionHasBlueSkyEffect(product?.Definition);
+        }
+
+        private static bool DefinitionHasBlueSkyEffect(ItemDefinition def)
+        {
             if (def == null) return false;
             if (def.ID == BlueSkyIds.BlueSky) return true;
             if (!TryCast(def, out ProductDefinition productDef)) return false;
@@ -632,6 +684,116 @@ namespace BlueSkyMod
             {
                 var p = props[i];
                 if (p != null && string.Equals(p.ID, BlueSkyIds.BlueSkyEffect, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        private static string GetItemInstanceId(ItemInstance item)
+        {
+            if (item == null) return null;
+            return !string.IsNullOrEmpty(item.ID) ? item.ID : item.Definition?.ID;
+        }
+
+        private static void DiscoverBlueSky(ProductManager pm)
+        {
+            if (pm == null || BlueSky == null) return;
+            var discovered = ProductManager.DiscoveredProducts;
+            if (discovered != null && discovered.Contains(BlueSky)) return;
+
+            if (pm.IsServerInitialized || !pm.IsClientInitialized)
+                pm.SetProductDiscovered(null, BlueSky.ID, false);
+            else
+                pm.DiscoverProduct(BlueSky.ID);
+        }
+
+        // Backfills Products App discovery on existing v1.9.1 saves that already hold Blue Sky or a derived mix.
+        private static void TryDiscoverExistingBlueSky(ProductManager pm)
+        {
+            if (_suppressInjectionThisLoad || pm == null || BlueSky == null) return;
+            if (!pm.IsServerInitialized && pm.IsClientInitialized) return;
+
+            try
+            {
+                var discovered = ProductManager.DiscoveredProducts;
+                if (discovered != null && discovered.Contains(BlueSky)) return;
+
+                bool found = false;
+                if (discovered != null)
+                {
+                    for (int i = 0; i < discovered.Count; i++)
+                    {
+                        if (DefinitionHasBlueSkyEffect(discovered[i]))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    var hotbar = PlayerSingleton<PlayerInventory>.Instance?.hotbarSlots;
+                    if (hotbar != null)
+                    {
+                        for (int i = 0; i < hotbar.Count; i++)
+                        {
+                            if (string.Equals(GetItemInstanceId(hotbar[i]?.ItemInstance), BlueSkyIds.BlueSky, StringComparison.OrdinalIgnoreCase))
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    var storages = FindAllLoadedObjects<StorageEntity>();
+                    for (int i = 0; i < storages.Length; i++)
+                    {
+                        var s = storages[i];
+                        if (s != null && s.gameObject.scene.IsValid() && SlotsContainItem(s.ItemSlots, BlueSkyIds.BlueSky))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    var dealers = FindAllLoadedObjects<Dealer>();
+                    for (int i = 0; i < dealers.Length; i++)
+                    {
+                        var d = dealers[i];
+                        if (d != null && d.gameObject.scene.IsValid() && SlotsContainItem(d.ItemSlots, BlueSkyIds.BlueSky))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (found)
+                {
+                    AddToProductLists(pm, BlueSky);
+                    DiscoverBlueSky(pm);
+                    LogMsg("Discovered Blue Sky Meth from existing save data.");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogWarnOnce("discover-existing", $"Checking existing save for Blue Sky discovery failed: {ex.Message}");
+            }
+        }
+
+        private static bool SlotsContainItem(List<ItemSlot> slots, string itemId)
+        {
+            if (slots == null) return false;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                if (string.Equals(GetItemInstanceId(slots[i]?.ItemInstance), itemId, StringComparison.OrdinalIgnoreCase))
                     return true;
             }
             return false;
